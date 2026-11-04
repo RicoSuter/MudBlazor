@@ -352,6 +352,14 @@ namespace MudBlazor
             _ => (string.IsNullOrEmpty(ReadText) ? "0" : $"{ReadText.Length}") + $" / {Counter}"
         };
 
+        // focusin is used so that the consumer's onfocus stays on the input.
+        private Action<FocusEventArgs>? _onInputFocused;
+
+        /// <summary>
+        /// Marks the field as focused so that <see cref="HandleContainerClickAsync"/>, which the browser dispatches after focus, skips refocusing the input.
+        /// </summary>
+        private void OnInputFocused(FocusEventArgs args) => _isFocused = true;
+
         protected async Task HandleContainerClickAsync()
         {
             if (!_isFocused && IsJSRuntimeAvailable && InputReference != null)
