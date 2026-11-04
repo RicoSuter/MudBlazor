@@ -2392,5 +2392,103 @@ namespace MudBlazor.UnitTests.Components
             var preventScroll = focusInvocation.Arguments.OfType<bool>().Single();
             preventScroll.Should().BeFalse();
         }
+
+        /// <summary>
+        /// A click that lands in the already focused input must not focus it again from the server.
+        /// Under Interactive Server that late focus call steals focus from a field the user has clicked into since.
+        /// </summary>
+        [TestCase(1, "input")]
+        [TestCase(2, "textarea")]
+        public async Task ContainerClick_AfterInputFocusIn_ShouldNotFocusInput(int lines, string selector)
+        {
+            var comp = Context.Render<MudTextField<string>>(parameters => parameters
+                .Add(p => p.Lines, lines));
+            await comp.Find(selector).FocusInAsync(new FocusEventArgs());
+            var focusCallsBefore = Context.JSInterop.Invocations["Blazor._internal.domWrapper.focus"].Count;
+
+            await comp.Find(".mud-input-control").ClickAsync(new MouseEventArgs());
+
+            Context.JSInterop.Invocations["Blazor._internal.domWrapper.focus"].Count.Should().Be(focusCallsBefore);
+        }
+
+        /// <summary>
+        /// A click on the container outside the input, such as on its padding or an adornment, still focuses the input.
+        /// </summary>
+        [Test]
+        public async Task ContainerClick_WithoutInputFocus_ShouldFocusInput()
+        {
+            var comp = Context.Render<MudTextField<string>>();
+            var focusCallsBefore = Context.JSInterop.Invocations["Blazor._internal.domWrapper.focus"].Count;
+
+            await comp.Find(".mud-input-control").ClickAsync(new MouseEventArgs());
+
+            Context.JSInterop.Invocations["Blazor._internal.domWrapper.focus"].Count.Should().Be(focusCallsBefore + 1);
+        }
+
+        /// <summary>
+        /// Once the input loses focus, a container click focuses it again.
+        /// </summary>
+        [Test]
+        public async Task ContainerClick_AfterInputBlur_ShouldFocusInput()
+        {
+            var comp = Context.Render<MudTextField<string>>();
+            await comp.Find("input").FocusInAsync(new FocusEventArgs());
+            await comp.Find("input").BlurAsync(new FocusEventArgs());
+            var focusCallsBefore = Context.JSInterop.Invocations["Blazor._internal.domWrapper.focus"].Count;
+
+            await comp.Find(".mud-input-control").ClickAsync(new MouseEventArgs());
+
+            Context.JSInterop.Invocations["Blazor._internal.domWrapper.focus"].Count.Should().Be(focusCallsBefore + 1);
+        }
+
+        /// <summary>
+        /// Tracking the input focus does not re-render the field or its input.
+        /// </summary>
+        [Test]
+        public async Task InputFocusIn_ShouldNotRerender()
+        {
+            var comp = Context.Render<MudTextField<string>>();
+            var input = comp.FindComponent<MudInput<string>>();
+            var fieldRenderCount = comp.RenderCount;
+            var inputRenderCount = input.RenderCount;
+
+            await comp.Find("input").FocusInAsync(new FocusEventArgs());
+
+            comp.RenderCount.Should().Be(fieldRenderCount);
+            input.RenderCount.Should().Be(inputRenderCount);
+        }
+
+        /// <summary>
+        /// An inline JavaScript <c>onfocus</c> attribute supplied by the consumer stays on the input or textarea.
+        /// </summary>
+        [TestCase(1, "input")]
+        [TestCase(2, "textarea")]
+        public void UserOnFocusAttribute_ShouldRenderOnInput(int lines, string selector)
+        {
+            var comp = Context.Render<MudTextField<string>>(parameters => parameters
+                .Add(p => p.Lines, lines)
+                .AddUnmatched("onfocus", "this.select()"));
+
+            comp.Find(selector).GetAttribute("onfocus").Should().Be("this.select()");
+        }
+
+        /// <summary>
+        /// A consumer <c>@onfocus</c> handler is still invoked, and the focus tracking still skips the container click focus.
+        /// </summary>
+        [Test]
+        public async Task UserOnFocusHandler_ShouldBeInvoked()
+        {
+            var focusCount = 0;
+            var comp = Context.Render<MudTextField<string>>(parameters => parameters
+                .AddUnmatched("onfocus", EventCallback.Factory.Create<FocusEventArgs>(this, () => focusCount++)));
+
+            await comp.Find("input").FocusAsync(new FocusEventArgs());
+            await comp.Find("input").FocusInAsync(new FocusEventArgs());
+            var focusCallsBefore = Context.JSInterop.Invocations["Blazor._internal.domWrapper.focus"].Count;
+            await comp.Find(".mud-input-control").ClickAsync(new MouseEventArgs());
+
+            focusCount.Should().Be(1);
+            Context.JSInterop.Invocations["Blazor._internal.domWrapper.focus"].Count.Should().Be(focusCallsBefore);
+        }
     }
 }

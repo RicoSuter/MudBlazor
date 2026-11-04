@@ -54,6 +54,7 @@
                           HelperText="@HelperText"
                           Immediate="@EffectiveImmediate"
                           Margin="@Margin"
+                          @onfocusin="@(_onInputFocused ??= this.AsNonRenderingEventHandler<FocusEventArgs>(OnInputFocused))"
                           OnBlur="@OnBlurredAsync"
                           OnKeyDown="@InvokeKeyDownAsync"
                           OnKeyUp="@InvokeKeyUpAsync"
