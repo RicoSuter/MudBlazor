@@ -159,7 +159,57 @@ test("changeCss, select, focus, and blur act on the element and ignore null", ()
         elementRef.blur(null);
         elementRef.changeCss(null, "x");
         elementRef.select(null);
+        elementRef.selectIfUnchanged(null, "");
     }).not.toThrow();
+});
+
+test("selectIfUnchanged selects the text of the focused element whose value is unchanged", () => {
+    const byId = renderForm();
+    const name = byId("name");
+    name.value = "Ada Lovelace";
+    name.focus();
+    name.setSelectionRange(12, 12);
+
+    elementRef.selectIfUnchanged(name, "Ada Lovelace");
+
+    expect([name.selectionStart, name.selectionEnd]).toEqual([0, 12]);
+});
+
+test("selectIfUnchanged leaves text typed since the focus unselected", () => {
+    const byId = renderForm();
+    const name = byId("name");
+    name.focus();
+    name.value = "A";
+    name.setSelectionRange(1, 1);
+
+    elementRef.selectIfUnchanged(name, "");
+
+    expect([name.selectionStart, name.selectionEnd]).toEqual([1, 1]);
+});
+
+test("selectIfUnchanged keeps a selection the user made since the focus", () => {
+    const byId = renderForm();
+    const name = byId("name");
+    name.value = "Ada Lovelace";
+    name.focus();
+    name.setSelectionRange(4, 8);
+
+    elementRef.selectIfUnchanged(name, "Ada Lovelace");
+
+    expect([name.selectionStart, name.selectionEnd]).toEqual([4, 8]);
+});
+
+test("selectIfUnchanged neither selects nor takes focus back when focus has moved on", () => {
+    const byId = renderForm();
+    const name = byId("name");
+    const select = spyOn(name, "select");
+    name.focus();
+    byId("save").focus();
+
+    elementRef.selectIfUnchanged(name, "");
+
+    expect(select).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(byId("save"));
 });
 
 test("the blur fallback notifies .NET when focus does not move to another element", () => {

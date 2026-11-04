@@ -3107,7 +3107,85 @@ namespace MudBlazor.UnitTests.Components
 
             await comp.Find("input").FocusAsync();
 
-            Context.JSInterop.Invocations["mudElementRef.select"].Should().HaveCount(selectOnActivation ? 1 : 0);
+            Context.JSInterop.Invocations["mudElementRef.selectIfUnchanged"].Should().HaveCount(selectOnActivation ? 1 : 0);
+        }
+
+        /// <summary>
+        /// Activation passes the value the input renders, also after the parent changed Value, so the browser can skip the selection once the user has typed.
+        /// </summary>
+        [TestCase("Alaska")]
+        [TestCase(null)]
+        public async Task Autocomplete_SelectOnActivation_PassesRenderedValue(string value)
+        {
+            var comp = Context.Render<MudAutocomplete<string>>(parameters => parameters
+                .Add(p => p.Value, "Alabama")
+                .Add(p => p.OpenOnFocus, false));
+            await comp.SetParametersAndRenderAsync(parameters => parameters.Add(p => p.Value, value));
+
+            await comp.Find("input").FocusAsync();
+
+            AssertActivationPassesRenderedValue(comp);
+        }
+
+        /// <summary>
+        /// Activation passes the rendered value when ToStringFunc formats it.
+        /// </summary>
+        [Test]
+        public async Task Autocomplete_SelectOnActivation_PassesRenderedValueWithToStringFunc()
+        {
+            var comp = Context.Render<MudAutocomplete<CoerceValueElement>>(parameters => parameters
+                .Add(p => p.Value, new CoerceValueElement { Name = "Helium" })
+                .Add(p => p.ToStringFunc, static x => x == null ? null : $"Element: {x.Name}")
+                .Add(p => p.OpenOnFocus, false));
+
+            await comp.Find("input").FocusAsync();
+
+            AssertActivationPassesRenderedValue(comp);
+        }
+
+        /// <summary>
+        /// Activating the input again after typing passes the typed text.
+        /// </summary>
+        [Test]
+        public async Task Autocomplete_SelectOnActivation_PassesTypedTextOnNextActivation()
+        {
+            var comp = Context.Render<MudAutocomplete<string>>(parameters => parameters
+                .Add(p => p.OpenOnFocus, false)
+                .Add(p => p.CoerceText, false)
+                .Add(p => p.SearchFunc, SearchStatesAsync));
+
+            await comp.Find("input").FocusAsync();
+            await comp.Find("input").InputAsync("Al");
+            await comp.Find("input").BlurAsync();
+            await comp.Find("input").FocusAsync();
+
+            AssertActivationPassesRenderedValue(comp);
+        }
+
+        /// <summary>
+        /// A programmatic SelectAsync still selects the text unconditionally.
+        /// </summary>
+        [Test]
+        public async Task Autocomplete_SelectAsync_SelectsUnconditionally()
+        {
+            var comp = Context.Render<MudAutocomplete<string>>(parameters => parameters
+                .Add(p => p.Value, "Alabama"));
+
+            await comp.InvokeAsync(async () => await comp.Instance.SelectAsync());
+
+            Context.JSInterop.Invocations["mudElementRef.select"].Should().ContainSingle();
+            Context.JSInterop.Invocations["mudElementRef.selectIfUnchanged"].Should().BeEmpty();
+        }
+
+        /// <summary>
+        /// Asserts that the last activation asked the browser to select the inner input only if it still holds the value the input renders.
+        /// </summary>
+        private void AssertActivationPassesRenderedValue<TComponent>(IRenderedComponent<TComponent> comp)
+            where TComponent : class, IComponent
+        {
+            var invocation = Context.JSInterop.Invocations["mudElementRef.selectIfUnchanged"].Last();
+            ((ElementReference)invocation.Arguments[0]).Id.Should().Be(comp.FindComponent<MudInput<string>>().Instance.ElementReference.Id);
+            invocation.Arguments[1].Should().Be(comp.Find("input").GetAttribute("value") ?? string.Empty);
         }
 
         /// <summary>

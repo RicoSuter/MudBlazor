@@ -20,6 +20,7 @@ type ReferenceElement = HTMLElement & {
     setSelectionRange?: (start: number, end: number) => void;
     createTextRange?: () => TextRange;
     select?: () => void;
+    value?: string;
     // Expandos the helpers store on the element across interop calls.
     mudblazor_savedFocus?: Element | null;
     _mudBlurHandler?: (e: FocusEvent) => void;
@@ -165,6 +166,22 @@ export default class MudElementReference {
      */
     select(element: ReferenceElement | null | undefined) {
         if (element)
+        {
+            element.select!();
+        }
+    }
+
+    /**
+     * Selects the element's full text only while the element still has focus, its value still equals expectedValue, and nothing is selected.
+     * Never moves focus.
+     */
+    selectIfUnchanged(element: ReferenceElement | null | undefined, expectedValue: string) {
+        // Under Interactive Server this runs a round trip after the focus event that requested it.
+        // By then the user may have typed, selected text, or moved to another field, which select() would overwrite or pull focus back from.
+        if (element
+            && element === element.ownerDocument.activeElement
+            && element.value === expectedValue
+            && element.selectionStart === element.selectionEnd)
         {
             element.select!();
         }
