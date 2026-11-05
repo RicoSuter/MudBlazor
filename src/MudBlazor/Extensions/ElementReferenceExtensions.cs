@@ -42,6 +42,9 @@ namespace MudBlazor
         public static ValueTask MudSelectAsync(this ElementReference elementReference) =>
             elementReference.GetJSRuntime()?.InvokeVoidAsync("mudElementRef.select", elementReference) ?? ValueTask.CompletedTask;
 
+        internal static ValueTask MudSelectIfUnchangedAsync(this ElementReference elementReference, string expectedValue) =>
+            elementReference.GetJSRuntime()?.InvokeVoidAsync("mudElementRef.selectIfUnchanged", elementReference, expectedValue) ?? ValueTask.CompletedTask;
+
         public static ValueTask MudSelectRangeAsync(this ElementReference elementReference, int pos1, int pos2) =>
             elementReference.GetJSRuntime()?.InvokeVoidAsync("mudElementRef.selectRange", elementReference, pos1, pos2) ?? ValueTask.CompletedTask;
 

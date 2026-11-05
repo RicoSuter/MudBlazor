@@ -1226,9 +1226,10 @@ namespace MudBlazor
             }
 
             // Select the input text unless we're already focused or it will interfere with cursor selection.
+            // The browser skips it if the user has typed or moved focus elsewhere before the call arrives.
             if (!wasFocused && SelectOnActivation)
             {
-                await SelectAsync();
+                await _elementReference.ElementReference.MudSelectIfUnchangedAsync(ReadText ?? string.Empty);
             }
 
             await OnInputActivatedAsync(OpenOnFocus);
